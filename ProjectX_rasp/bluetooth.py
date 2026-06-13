@@ -1,4 +1,3 @@
-# bt_receiver.py
 import socket
 import time
 import threading

@@ -1,4 +1,3 @@
-# web_server.py
 from flask import Flask, jsonify, render_template_string
 import sqlite3
 from datetime import datetime

@@ -1,6 +1,7 @@
 #!/bin/bash
 
 cd /home/alarm/gitclone/ProjectX/ProjectX_rasp
+source ./venv/bin/activate
 
 # Запуск Bluetooth приёмника
 python3 bluetooth.py &
