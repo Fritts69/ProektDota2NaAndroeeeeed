@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/mnt/disk2/prog/sem4/ProjectX/Gui/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

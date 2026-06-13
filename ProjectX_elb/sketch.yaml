@@ -1,0 +1,2 @@
+default_fqbn: Elron:MIK32_Amur:aceUno8Mb
+default_port: /dev/ttyACM0

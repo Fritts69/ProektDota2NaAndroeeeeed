@@ -1,38 +1,140 @@
 #include <Wire.h>
-#include <MPU6050.h>
-#include <SoftwareSerial.h>
+#include <SPI.h>
+#include <DHT.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
 
-MPU6050 mpu;  // MGS-A6 (гиро+аксель)
-SoftwareSerial btMega(14, 15); // BT HC-05
+// Pin definitions
+#define DHT_PIN 2
+#define DHT_TYPE DHT22
+#define LM75A_ADDR 0x48
 
-#define CO30_PIN A0
+// Initialize sensors
+DHT dht(DHT_PIN, DHT_TYPE);
+Adafruit_BMP280 bmp280;
+
+// Use hardware SPI for BMP280
+#define BMP_SCK 13
+#define BMP_MISO 12
+#define BMP_MOSI 11
+#define BMP_CS 10
+
+// Bluetooth baud rate
+#define BT_BAUD 9600
+
+unsigned long previousMillis = 0;
+const long interval = 2000; // Send data every 2 seconds
+
+struct SensorData {
+  float lm75a_temp;
+  float dht_temp;
+  float dht_humidity;
+  float bmp_temp;
+  float bmp_pressure;
+  bool lm75a_error;
+  bool dht_error;
+  bool bmp_error;
+};
+
+SensorData data;
 
 void setup() {
-  Serial.begin(9600);
-  btMega.begin(9600);
+  Serial.begin(BT_BAUD);
   Wire.begin();
-  mpu.initialize();
+  
+  // Initialize DHT22
+  dht.begin();
+  delay(100);
+  
+  // Initialize BMP280 with SPI
+  if (!bmp280.begin(BMP_CS)) {
+    data.bmp_error = true;
+  } else {
+    bmp280.setSampling(Adafruit_BMP280::MODE_NORMAL,
+                       Adafruit_BMP280::SAMPLING_X2,
+                       Adafruit_BMP280::SAMPLING_X16,
+                       Adafruit_BMP280::FILTER_X16,
+                       Adafruit_BMP280::STANDBY_MS_500);
+    data.bmp_error = false;
+  }
+  
+  data.lm75a_error = false;
+  data.dht_error = false;
+  
+  Serial.println("ARDUINO_START");
+}
+
+float readLM75A() {
+  Wire.beginTransmission(LM75A_ADDR);
+  Wire.write(0x00); // Temperature register
+  if (Wire.endTransmission() != 0) {
+    data.lm75a_error = true;
+    return -999.0;
+  }
+  
+  Wire.requestFrom(LM75A_ADDR, 2);
+  if (Wire.available() >= 2) {
+    uint8_t msb = Wire.read();
+    uint8_t lsb = Wire.read();
+    int16_t temp = (msb << 8) | lsb;
+    temp >>= 7;
+    data.lm75a_error = false;
+    return temp * 0.5;
+  }
+  
+  data.lm75a_error = true;
+  return -999.0;
+}
+
+void readDHT22() {
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  
+  if (isnan(h) || isnan(t)) {
+    data.dht_error = true;
+    data.dht_humidity = -999.0;
+    data.dht_temp = -999.0;
+  } else {
+    data.dht_error = false;
+    data.dht_humidity = h;
+    data.dht_temp = t;
+  }
+}
+
+void readBMP280() {
+  if (data.bmp_error) return;
+  
+  data.bmp_temp = bmp280.readTemperature();
+  data.bmp_pressure = bmp280.readPressure() / 133.322; // Convert to mmHg
+}
+
+void sendData() {
+  // Format: ARDUINO|LM75A_TEMP|DHT_TEMP|DHT_HUM|BMP_TEMP|BMP_PRESS|TIMESTAMP
+  unsigned long timestamp = millis();
+  
+  String packet = "ARDUINO|";
+  packet += String(data.lm75a_temp, 1) + "|";
+  packet += String(data.dht_temp, 1) + "|";
+  packet += String(data.dht_humidity, 1) + "|";
+  packet += String(data.bmp_temp, 1) + "|";
+  packet += String(data.bmp_pressure, 1) + "|";
+  packet += String(timestamp);
+  
+  Serial.println(packet);
 }
 
 void loop() {
-  // A6
-  int16_t ax, ay, az, gx, gy, gz;
-  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-
-  // CO30
-  int co2_raw = analogRead(CO30_PIN);
-  float co2_ppm = map(co2_raw, 0, 1023, 400, 5000); // калибровка
-
-  // D20 (лазерный дальномер — через I2C)
-  Wire.requestFrom(0x62, 2);
-  int distance = Wire.read() << 8 | Wire.read();
-
-  String data = String("AX:") + ax +
-                ",AY:" + ay +
-                ",AZ:" + az +
-                ",CO2:" + co2_ppm +
-                ",DIST:" + distance;
-
-  btMega.println(data);
-  delay(3000);
+  unsigned long currentMillis = millis();
+  
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    
+    // Read all sensors
+    data.lm75a_temp = readLM75A();
+    readDHT22();
+    readBMP280();
+    
+    // Send via Bluetooth
+    sendData();
+  }
 }
