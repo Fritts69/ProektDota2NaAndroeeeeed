@@ -9,8 +9,22 @@ void Sensors::begin() {
 }
 
 String Sensors::readData() {
-    String s_tmp = String(temperature.readTemperatureC(), 1);
-    String s_hmd = String(dht22.getHumidity(), 1);
-    String s_prs = String(bmp.readPressure());// * 760.0 / 101325.0, 1);
-    return "{'temp': " + s_tmp + ", 'humid': " + s_hmd + ", 'press': " + s_prs + "}";
+    // Считываем данные
+    float tmp_lm75 = temperature.readTemperatureC();
+    float hum_dht = dht22.getHumidity();
+    float tmp_dht = dht22.getTemperature();
+    
+    // BME280 возвращает давление в Паскалях. Переводим в мм.рт.ст. (mmHg)
+    float press_bmp = bmp.readPressure();
+    float tmp_bmp = bmp.readTemperature();
+
+    // Формируем пакет для Raspberry Pi сервера:
+    // ARDUINO|LM75A_TEMP|DHT_TEMP|DHT_HUM|BMP_TEMP|BMP_PRESS|TIMESTAMP
+    String packet = "ARDUINO|";
+    packet += String(tmp_lm75, 1) + "|";
+    packet += String(hum_dht, 1) + "|";
+    packet += String(press_bmp, 1) + "|";
+    packet += "0"; // Плейсхолдер для timestamp (сервер подставит свой)
+
+    return packet;
 }

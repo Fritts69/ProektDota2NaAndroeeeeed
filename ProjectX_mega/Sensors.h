@@ -5,13 +5,7 @@
 #include <Wire.h>
 #include <Temperature_LM75_Derived.h>
 #include <DHT22.h>
-//#include <Adafruit_BMP280.h>
 #include <GyverBME280.h>
-
-#define BMP_SCK  (8)  // scl
-#define BMP_MISO (12) // sdo
-#define BMP_MOSI (9) // sda
-#define BMP_CS   (11) // csb
 
 class Sensors {
 public:
