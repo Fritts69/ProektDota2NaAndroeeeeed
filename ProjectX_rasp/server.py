@@ -161,9 +161,9 @@ def parse_arduino_data(data_str):
                 f = float(v)
                 return None if f == -999.0 else f
             weather_data['arduino'] = {
-                'lm75a_temp': sf(parts[1]), 'dht_temp': sf(parts[2]),
-                'dht_humidity': sf(parts[3]), 'bmp_temp': sf(parts[4]),
-                'bmp_pressure': sf(parts[5]),
+                'lm75a_temp': sf(parts[1]),
+                'dht_humidity': sf(parts[2]),
+                'bmp_pressure': sf(parts[3]),
                 'timestamp': datetime.now().isoformat()
             }
             weather_data['last_update'] = datetime.now().isoformat()
